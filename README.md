@@ -6,7 +6,7 @@ Open the HTML file in Chrome or Edge, connect your controller, and feel real-tim
 
 ## Live Demo
 
-Open this link (hosted on GitHub Pages): https://github.io
+Open this link (hosted on GitHub Pages): [Click me!](https://semen1207.github.io/dualsense-haptics/)
 
 **Browser support:** WebHID is required. Chrome or Edge on desktop only (close background apps like Steam Input or DS4Windows first).
 
