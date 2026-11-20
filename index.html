@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DualSense Haptics Lab</title>
+<style>
+  :root {
+    --bg: #0e1016;
+    --panel: #171a23;
+    --card: #1e222e;
+    --border: #2c3242;
+    --accent: #0070d1;
+    --accent-glow: rgba(0, 112, 209, 0.35);
+    --danger: #d9383a;
+    --text: #eef2f7;
+    --muted: #8e98aa;
+  }
+  * { box-sizing: border-box; user-select: none; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  .badge {
+    font-size: 11px;
+    background: #222736;
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    border-radius: 12px;
+    color: var(--muted);
+  }
+  .spacer { flex: 1; }
+
+  button {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.12s;
+  }
+  button:hover { background: #282e3d; border-color: #3f485e; }
+  button.active {
+    background: var(--accent);
+    border-color: #3399ff;
+    box-shadow: 0 0 14px var(--accent-glow);
+  }
+  #stop-btn { background: #2d1b20; border-color: #5c282b; color: #ff8a8c; }
+  #stop-btn:hover { background: var(--danger); color: #fff; }
+  #connect-btn { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #connect-btn.connected { background: #198754; border-color: #198754; }
+
+  main {
+    flex: 1;
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin: 0 0 12px 0;
+  }
+
+  /* Sliders */
+  .sliders {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .slider-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Effect Preset Grid */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+  }
+  .preset-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px;
+    text-align: left;
+  }
+  .preset-name { font-size: 14px; font-weight: 600; }
+  .preset-desc { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+  /* Live Waveform Canvas */
+  canvas {
+    width: 100%;
+    height: 110px;
+    background: #0b0d12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: block;
+  }
+
+  footer {
+    background: #0a0c10;
+    border-top: 1px solid var(--border);
+    padding: 6px 24px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📳 DualSense Haptics Lab</h1>
+  <span class="badge">WebHID Actuators</span>
+  <div class="spacer"></div>
+  <button id="stop-btn">⏹ Stop All</button>
+  <button id="connect-btn">🎮 Connect DualSense</button>
+</header>
+
+<main>
+  <!-- Manual Actuator Sliders -->
+  <div class="section">
+    <div class="section-title">Manual Dual-Actuator Control (Or Pull L2 / R2 Triggers!)</div>
+    <div class="sliders">
+      <div class="slider-box">
+        <div class="slider-header">
+          <span>🔊 Left Motor (Deep / Heavy Bass)</span>
+          <span id="left-val">0%</span>
+        </div>
+        <input type="range" id="left-slider" min="0" max="255" value="0">
+      </div>
+      <div class="slider-box">
+        <div class="slider-header">
+          <span>⚡ Right Motor (Crisp / High-Freq)</span>
+          <span id="right-val">0%</span>
+        </div>
+        <input type="range" id="right-slider" min="0" max="255" value="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- Synthesized Haptic Effects -->
+  <div class="section">
+    <div class="section-title">Synthesized Haptic Textures (Click to Toggle)</div>
+    <div class="preset-grid">
+      <button class="preset-btn" data-mode="heartbeat">
+        <span class="preset-name">💓 Heartbeat</span>
+        <span class="preset-desc">Double thump pulse</span>
+      </button>
+      <button class="preset-btn" data-mode="engine">
+        <span class="preset-name">🏎️ V8 Engine Idle</span>
+        <span class="preset-desc">Low-end rhythmic purr</span>
+      </button>
+      <button class="preset-btn" data-mode="rain">
+        <span class="preset-name">🌧️ Raindrops</span>
+        <span class="preset-desc">Random crisp micro-taps</span>
+      </button>
+      <button class="preset-btn" data-mode="saw">
+        <span class="preset-name">🪚 Chainsaw / Buzz</span>
+        <span class="preset-desc">High-frequency oscillation</span>
+      </button>
+      <button class="preset-btn" data-mode="wave">
+        <span class="preset-name">🌊 Ocean Wave</span>
+        <span class="preset-desc">Smooth stereo swell L ↔ R</span>
+      </button>
+      <button class="preset-btn" data-mode="gatling">
+        <span class="preset-name">💥 Rapid Recoil</span>
+        <span class="preset-desc">Sharp 15Hz mechanical kick</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Live Output Visualizer -->
+  <div class="section">
+    <div class="section-title">Live Haptic Waveform (Blue = Left Heavy | Cyan = Right Crisp)</div>
+    <canvas id="scope" width="900" height="110"></canvas>
+  </div>
+</main>
+
+<footer>
+  <span id="status-text">Status: Ready — Connect DualSense via USB or Bluetooth (Chrome/Edge)</span>
+  <span id="pps-text">0 pkt/s</span>
+</footer>
+
+<script>
+const connectBtn = document.getElementById('connect-btn');
+const stopBtn = document.getElementById('stop-btn');
+const leftSlider = document.getElementById('left-slider');
+const rightSlider = document.getElementById('right-slider');
+const leftVal = document.getElementById('left-val');
+const rightVal = document.getElementById('right-val');
+const statusText = document.getElementById('status-text');
+const ppsText = document.getElementById('pps-text');
+const scope = document.getElementById('scope');
+const sctx = scope.getContext('2d');
+
+let device = null;
+let isBt = false;
+let btSeq = 0;
+
+let activeMode = 'manual';
+let leftIntensity = 0;
+let rightIntensity = 0;
+let triggerLeft = 0;
+let triggerRight = 0;
+
+let packetCount = 0;
+setInterval(() => {
+  ppsText.textContent = packetCount + ' pkt/s';
+  packetCount = 0;
+}, 1000);
+
+// CRC32 Table for Bluetooth 0x31 Output Reports (0xA2 prefix)
+const crcTable = new Uint32Array(256);
+for (let i = 0; i < 256; i++) {
+  let c = i;
+  for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+  crcTable.set([c], i);
+}
+function computeCrc32(prefixByte, buffer) {
+  let crc = 0xffffffff;
+  crc = crcTable.at((crc ^ prefixByte) & 0xff) ^ (crc >>> 8);
+  for (let i = 0; i < buffer.length - 4; i++) {
+    crc = crcTable.at((crc ^ buffer.at(i)) & 0xff) ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+// Send Haptics + Lightbar Output Report
+async function sendHaptics(leftMotor, rightMotor) {
+  if (!device || !device.opened) return;
+  const L = Math.max(0, Math.min(255, Math.round(leftMotor)));
+  const R = Math.max(0, Math.min(255, Math.round(rightMotor)));
+
+  // Lightbar reacts dynamically to vibration intensity
+  const red = Math.min(255, Math.round(L * 0.9 + R * 0.4));
+  const blue = Math.min(255, Math.round(40 + R * 0.85));
+
+  try {
+    if (!isBt) {
+      // USB Report 0x02 (47 bytes): Byte 0 = 0x03 (Haptics) | 0x04 (Lightbar), Byte 2 = Right, Byte 3 = Left
+      const out = new Uint8Array(47);
+      out.set([0x07, 0x04, R, L], 0);
+      out.set([red, 20, blue], 44);
+      await device.sendReport(0x02, out);
+    } else {
+      // Bluetooth Report 0x31 (77 bytes + CRC32)
+      const out = new Uint8Array(77);
+      out.set([(btSeq << 4), 0x07, 0x04, R, L], 0);
+      out.set([red, 20, blue], 45);
+      btSeq = (btSeq + 1) & 0x0f;
+      const crc = computeCrc32(0xa2, out);
+      new DataView(out.buffer).setUint32(73, crc, true);
+      await device.sendReport(0x31, out);
+    }
+  } catch (_) {}
+}
+
+// UI Controls
+function setMode(mode) {
+  activeMode = (activeMode === mode) ? 'manual' : mode;
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === activeMode);
+  });
+  if (activeMode === 'manual') {
+    leftIntensity = Number(leftSlider.value);
+    rightIntensity = Number(rightSlider.value);
+  }
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.onclick = () => setMode(btn.dataset.mode);
+});
+
+leftSlider.oninput = () => {
+  setMode('manual');
+  leftIntensity = Number(leftSlider.value);
+  leftVal.textContent = Math.round((leftIntensity / 255) * 100) + '%';
+};
+
+rightSlider.oninput = () => {
+  setMode('manual');
+  rightIntensity = Number(rightSlider.value);
+  rightVal.textContent = Math.round((rightIntensity / 255) * 100) + '%';
+};
+
+stopBtn.onclick = () => {
+  activeMode = 'manual';
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  leftSlider.value = 0;
+  rightSlider.value = 0;
+  leftVal.textContent = '0%';
+  rightVal.textContent = '0%';
+  leftIntensity = 0;
+  rightIntensity = 0;
+  sendHaptics(0, 0);
+};
+
+// Waveform History Buffer
+const historyL = new Array(180).fill(0);
+const historyR = new Array(180).fill(0);
+
+function drawScope() {
+  sctx.clearRect(0, 0, scope.width, scope.height);
+
+  // Center line
+  sctx.strokeStyle = '#1f2430';
+  sctx.lineWidth = 1;
+  sctx.beginPath();
+  sctx.moveTo(0, scope.height / 2);
+  sctx.lineTo(scope.width, scope.height / 2);
+  sctx.stroke();
+
+  const step = scope.width / historyL.length;
+
+  // Left Motor Wave (Blue)
+  sctx.strokeStyle = '#0070d1';
+  sctx.lineWidth = 2.5;
+  sctx.beginPath();
+  for (let i = 0; i < historyL.length; i++) {
+    const y = scope.height - 10 - (historyL.at(i) / 255) * (scope.height - 20);
+    if (i === 0) sctx.moveTo(0, y);
+    else sctx.lineTo(i * step, y);
+  }
+  sctx.stroke();
+
+  // Right Motor Wave (Cyan)
+  sctx.strokeStyle = '#00e5ff';
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  for (let i = 0; i < historyR.length; i++) {
+    const y = scope.height - 10 - (historyR.at(i) / 255) * (scope.height - 20);
+    if (i === 0) sctx.moveTo(0, y);
+    else sctx.lineTo(i * step, y);
+  }
+  sctx.stroke();
+}
+
+// 60Hz Haptic Synthesizer Loop
+let startTime = performance.now();
+setInterval(() => {
+  const t = (performance.now() - startTime) / 1000;
+  let outL = leftIntensity;
+  let outR = rightIntensity;
+
+  if (activeMode === 'heartbeat') {
+    const cycle = t % 1.1;
+    if (cycle < 0.12) { outL = 220; outR = 90; }
+    else if (cycle > 0.22 && cycle < 0.34) { outL = 170; outR = 130; }
+    else { outL = 0; outR = 0; }
+  } else if (activeMode === 'engine') {
+    const pulse = Math.sin(t * 28 * Math.PI);
+    outL = pulse > 0 ? 150 : 45;
+    outR = Math.abs(Math.sin(t * 56 * Math.PI)) * 65;
+  } else if (activeMode === 'rain') {
+    outL = Math.random() < 0.06 ? 110 : 0;
+    outR = Math.random() < 0.22 ? (60 + Math.random() * 140) : 0;
+  } else if (activeMode === 'saw') {
+    outL = 90 + Math.sin(t * 45) * 60;
+    outR = 180 + Math.cos(t * 90) * 75;
+  } else if (activeMode === 'wave') {
+    const pan = (Math.sin(t * 2.2) + 1) / 2;
+    outL = Math.round((1 - pan) * 210);
+    outR = Math.round(pan * 210);
+  } else if (activeMode === 'gatling') {
+    const shot = (t * 15) % 1;
+    outL = shot < 0.35 ? 255 : 0;
+    outR = shot < 0.25 ? 255 : 0;
+  }
+
+  // Blend in Analog L2 / R2 Trigger Pulls
+  outL = Math.max(outL, triggerLeft);
+  outR = Math.max(outR, triggerRight);
+
+  historyL.push(outL);
+  historyL.shift();
+  historyR.push(outR);
+  historyR.shift();
+  drawScope();
+
+  if (device && device.opened) {
+    sendHaptics(outL, outR);
+  }
+}, 16);
+
+// WebHID Connection
+connectBtn.onclick = async () => {
+  if (!('hid' in navigator)) {
+    statusText.textContent = 'Error: WebHID is not supported. Open in Chrome or Edge.';
+    return;
+  }
+
+  try {
+    const devices = await navigator.hid.requestDevice({
+      filters: [
+        { vendorId: 0x054c, productId: 0x0ce6 },
+        { vendorId: 0x054c, productId: 0x0df2 }
+      ]
+    });
+
+    device = devices.at(0);
+    if (!device) return;
+    if (!device.opened) await device.open();
+
+    try {
+      await device.receiveFeatureReport(0x05);
+    } catch (_) {}
+
+    connectBtn.textContent = '✅ DualSense Connected';
+    connectBtn.classList.add('connected');
+    statusText.textContent = 'Connected: ' + device.productName + ' | Use sliders, presets, or squeeze L2 / R2 triggers!';
+
+    device.addEventListener('inputreport', (event) => {
+      packetCount++;
+      const { data, reportId } = event;
+      isBt = (reportId === 0x31 || data.byteLength >= 77);
+      const offset = isBt ? 1 : 0;
+      if (data.byteLength < 6 + offset) return;
+
+      // Analog L2 (Byte 4 USB / Byte 5 BT) & R2 (Byte 5 USB / Byte 6 BT) -> Direct trigger-to-rumble!
+      triggerLeft = data.getUint8(4 + offset);
+      triggerRight = data.getUint8(5 + offset);
+    });
+  } catch (err) {
+    statusText.textContent = 'Connection Error: ' + err.message;
+  }
+};
+</script>
+</body>
+</html>
