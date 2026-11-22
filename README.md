@@ -26,6 +26,9 @@ Open this link (hosted on GitHub Pages): [Click me!](https://semen1207.github.io
 * **60Hz Haptic Engine:** Synthesizes custom vibration waveforms and sends Left/Right actuator bytes (`0–255`) at 60Hz alongside dynamic RGB lightbar updates.
 * **USB vs. Bluetooth:** Automatically detects connection type from input report length (`63B` USB vs `77B` Bluetooth) and signs Bluetooth `0x31` output packets with a `0xA2`-prefixed CRC32 checksum.
 
+##
+Notes: **BlueTooth doesn't work on Windows. The BlueTooth driver for the DualSense natively disables it.**
+
 ## License
 
 MIT
